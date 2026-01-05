@@ -1,202 +1,188 @@
 const board = document.querySelector("#board");
 const cols = Math.floor(board.clientWidth / 50);
 const rows = Math.floor(board.clientHeight / 50);
+
 const scoreElement = document.querySelector("#score");
-const highScoreElemnt = document.querySelector("#high-score");
 const levelElement = document.querySelector("#level");
-const timeElement = document.querySelector("#time");
 
 let score = 0;
 let level = 1;
 let speed = 300;
 levelElement.innerText = level;
 
-const blocks = [];
+const blocks = {};
+let collisionBlocks = [];
+
+/* ================== SNAKE (FIXED) ================== */
+/* Head is at index 0 and moving RIGHT into empty space */
 const snake = [
-  {
-    x: 2,
-    y: 5,
-  },
-  {
-    x: 2,
-    y: 6,
-  },
-  {
-    x: 2,
-    y: 7,
-  },
+  { x: 2, y: 7 }, // head
+  { x: 2, y: 6 },
+  { x: 2, y: 5 },
 ];
-
-const collisionBlocks = [
-  {
-    x: 1,
-    y: 1,
-  },
-  {
-    x: 1,
-    y: 2,
-  },
-  {
-    x: 2,
-    y: 2,
-  },
-];
-
-let foodPosition = {
-  x: Math.floor(Math.random() * rows),
-  y: Math.floor(Math.random() * cols),
-};
-snake.forEach((segment) => {
-  if (segment.x === foodPosition.x && segment.y === foodPosition.y) {
-    foodPosition = {
-      x: Math.floor(Math.random() * rows),
-      y: Math.floor(Math.random() * cols),
-    };
-  }
-});
-
-let foodItem = [
-  {
-    foodItem: 1,
-    foodName: "Apple",
-    score: 10,
-    img: "https://pnglove.com/data/img/720_mpvW.jpg",
-  },
-  {
-    foodItem: 2,
-    foodName: "Banana",
-    score: 20,
-    img: "https://i.pinimg.com/736x/32/f0/1c/32f01cfcf9ba1dbe20a546f4dff08fd3.jpg",
-  },
-  {
-    foodItem: 3,
-    foodName: "Cherry",
-    score: 30,
-    img: "https://i.pinimg.com/736x/b3/a6/a4/b3a6a4d0e359e8ac9a1c22731baffedc.jpg",
-  },
-];
-let foodItemIndex = Math.floor(Math.random() * foodItem.length);
 
 let direction = "right";
 let intervalId = null;
 
-for (let row = 0; row < rows; row++) {
-  for (let col = 0; col < cols; col++) {
-    const block = document.createElement("div");
-    block.classList.add("block");
-    board.appendChild(block);
-    // block.innerText = `${row},${col}`;
-    blocks[`${row}-${col}`] = block;
-  }
-}
+/* ================== FOOD ================== */
+const foodItem = [
+  { score: 10, img: "https://pnglove.com/data/img/720_mpvW.jpg" },
+  { score: 20, img: "https://i.pinimg.com/736x/32/f0/1c/32f01cfcf9ba1dbe20a546f4dff08fd3.jpg" },
+  { score: 30, img: "https://i.pinimg.com/736x/b3/a6/a4/b3a6a4d0e359e8ac9a1c22731baffedc.jpg" },
+];
+
+let foodItemIndex = Math.floor(Math.random() * foodItem.length);
 
 const img = document.createElement("img");
 img.classList.add("food-image");
 
-
-function render() {
-  let head = snake[0];
-
-  img.setAttribute("src", foodItem[foodItemIndex].img);
-  blocks[`${foodPosition.x}-${foodPosition.y}`].appendChild(img);
-
-  // direction logic
-  if (direction === "left") {
-    head = { x: snake[0].x, y: snake[0].y - 1 };
-  } else if (direction === "right") {
-    head = { x: snake[0].x, y: snake[0].y + 1 };
-  } else if (direction === "up") {
-    head = { x: snake[0].x - 1, y: snake[0].y };
-  } else if (direction === "down") {
-    head = { x: snake[0].x + 1, y: snake[0].y };
+/* ================== GRID ================== */
+for (let r = 0; r < rows; r++) {
+  for (let c = 0; c < cols; c++) {
+    const block = document.createElement("div");
+    block.classList.add("block");
+    board.appendChild(block);
+    blocks[`${r}-${c}`] = block;
   }
+}
 
-  snake.forEach((segment) => {
-    blocks[`${segment.x}-${segment.y}`].classList.remove("fill");
-  });
-
-  //   game over logic
-  if (head.x < 0 || head.x >= rows || head.y < 0 || head.y >= cols) {
-    alert("game over");
-    clearInterval(intervalId);
-  }
-  
-
-  //   food consume logic
-  if (head.x === foodPosition.x && head.y === foodPosition.y) {
-    score += foodItem[foodItemIndex].score;
-    foodItemIndex = Math.floor(Math.random() * foodItem.length);
-
-    foodPosition = {
+/* ================== HELPERS ================== */
+function generateFood() {
+  let pos;
+  do {
+    pos = {
       x: Math.floor(Math.random() * rows),
       y: Math.floor(Math.random() * cols),
     };
-    snake.push(head);
+  } while (
+    snake.some(s => s.x === pos.x && s.y === pos.y) ||
+    collisionBlocks.some(w => w.x === pos.x && w.y === pos.y)
+  );
+  return pos;
+}
+
+let foodPosition = generateFood();
+
+function generateWalls() {
+  collisionBlocks = [];
+
+  if (level >= 2) {
+    for (let i = 0; i < cols; i++) {
+      collisionBlocks.push({ x: 0, y: i });
+      collisionBlocks.push({ x: rows - 1, y: i });
+    }
   }
+
+  if (level >= 3) {
+    for (let i = 0; i < rows; i++) {
+      collisionBlocks.push({ x: i, y: 0 });
+      collisionBlocks.push({ x: i, y: cols - 1 });
+    }
+  }
+
+  if (level >= 4) {
+    for (let i = 5; i < cols - 5; i++) {
+      collisionBlocks.push({ x: Math.floor(rows / 2), y: i });
+    }
+  }
+
+  // Safety: remove walls overlapping snake
+  collisionBlocks = collisionBlocks.filter(
+    w => !snake.some(s => s.x === w.x && s.y === w.y)
+  );
+}
+
+/* ================== GAME LOOP ================== */
+function render() {
+  Object.values(blocks).forEach(b =>
+    b.classList.remove("fill", "collision-block")
+  );
+
+  let head = { ...snake[0] };
+
+  if (direction === "left") head.y--;
+  if (direction === "right") head.y++;
+  if (direction === "up") head.x--;
+  if (direction === "down") head.x++;
+
+  /* -------- BOUNDARY -------- */
+  if (head.x < 0 || head.x >= rows || head.y < 0 || head.y >= cols) {
+    return gameOver("Boundary hit");
+  }
+
+  /* -------- WALL -------- */
+  for (let wall of collisionBlocks) {
+    if (head.x === wall.x && head.y === wall.y) {
+      return gameOver("Wall hit");
+    }
+  }
+
+  /* -------- SELF -------- */
+  for (let i = 1; i < snake.length; i++) {
+    if (head.x === snake[i].x && head.y === snake[i].y) {
+      return gameOver("Self collision");
+    }
+  }
+
+  /* -------- FOOD -------- */
+  let ateFood = false;
+  if (head.x === foodPosition.x && head.y === foodPosition.y) {
+    score += foodItem[foodItemIndex].score;
+    foodItemIndex = Math.floor(Math.random() * foodItem.length);
+    foodPosition = generateFood();
+    ateFood = true;
+  }
+
+  snake.unshift(head);
+  if (!ateFood) snake.pop();
 
   scoreElement.innerText = score;
 
-  snake.unshift(head);
-  snake.pop();
+  /* -------- LEVEL -------- */
+  let prevLevel = level;
 
-  snake.forEach((segment) => {
-    if (segment.x === foodPosition.x && segment.y === foodPosition.y) {
-      foodPosition = {
-        x: Math.floor(Math.random() * rows),
-        y: Math.floor(Math.random() * cols),
-      };
-    }
-  });
+  if (score >= 200 && score < 400) { level = 2; speed = 250; }
+  else if (score >= 400 && score < 600) { level = 3; speed = 200; }
+  else if (score >= 600 && score < 800) { level = 4; speed = 150; }
+  else if (score >= 800) { level = 5; speed = 100; }
 
-  // speed increase logic
-  let previousLevel = level;
-
-  if (score >= 200 && score < 400) {
-    level = 2;
-    speed = 250;
-  } else if (score >= 400 && score < 600) {
-    level = 3;
-    speed = 200;
-  } else if (score >= 600 && score < 800) {
-    level = 4;
-    speed = 150;
-  } else if (score >= 800) {
-    level = 5;
-    speed = 100;
-  }
-
-  if (level !== previousLevel) {
+  if (level !== prevLevel) {
     levelElement.innerText = level;
+    generateWalls();
     startGameLoop();
   }
 
-  snake.forEach((segment) => {
-    blocks[`${segment.x}-${segment.y}`].classList.add("fill");
-  });
+  /* -------- DRAW -------- */
+  snake.forEach(s =>
+    blocks[`${s.x}-${s.y}`].classList.add("fill")
+  );
 
-  collisionBlocks.forEach((block) => {
-    blocks[`${block.x}-${block.y}`].classList.add("collision-block");
-  });
+  collisionBlocks.forEach(w =>
+    blocks[`${w.x}-${w.y}`]?.classList.add("collision-block")
+  );
+
+  img.src = foodItem[foodItemIndex].img;
+  blocks[`${foodPosition.x}-${foodPosition.y}`].appendChild(img);
+}
+
+function gameOver(reason) {
+  alert("Game Over: " + reason);
+  clearInterval(intervalId);
 }
 
 function startGameLoop() {
   clearInterval(intervalId);
-
-  intervalId = setInterval(() => {
-    render();
-  }, speed);
+  intervalId = setInterval(render, speed);
 }
 
+/* ================== START ================== */
+generateWalls();
 startGameLoop();
 
-addEventListener("keydown", (e) => {
-  if (e.key === "ArrowUp") {
-    direction = "up";
-  } else if (e.key === "ArrowDown") {
-    direction = "down";
-  } else if (e.key === "ArrowLeft") {
-    direction = "left";
-  } else if (e.key === "ArrowRight") {
-    direction = "right";
-  }
+/* ================== CONTROLS ================== */
+addEventListener("keydown", e => {
+  if (e.key === "ArrowUp" && direction !== "down") direction = "up";
+  if (e.key === "ArrowDown" && direction !== "up") direction = "down";
+  if (e.key === "ArrowLeft" && direction !== "right") direction = "left";
+  if (e.key === "ArrowRight" && direction !== "left") direction = "right";
 });
