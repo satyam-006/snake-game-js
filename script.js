@@ -4,9 +4,11 @@ const rows = Math.floor(board.clientHeight / 50);
 
 const scoreElement = document.querySelector("#score");
 const levelElement = document.querySelector("#level");
+const livesElement = document.querySelectorAll(".live");
 
 let score = 0;
 let level = 1;
+let lives = 3;
 let speed = 300;
 levelElement.innerText = level;
 
@@ -27,8 +29,14 @@ let intervalId = null;
 /* ================== FOOD ================== */
 const foodItem = [
   { score: 10, img: "https://pnglove.com/data/img/720_mpvW.jpg" },
-  { score: 20, img: "https://i.pinimg.com/736x/32/f0/1c/32f01cfcf9ba1dbe20a546f4dff08fd3.jpg" },
-  { score: 30, img: "https://i.pinimg.com/736x/b3/a6/a4/b3a6a4d0e359e8ac9a1c22731baffedc.jpg" },
+  {
+    score: 20,
+    img: "https://i.pinimg.com/736x/32/f0/1c/32f01cfcf9ba1dbe20a546f4dff08fd3.jpg",
+  },
+  {
+    score: 30,
+    img: "https://i.pinimg.com/736x/b3/a6/a4/b3a6a4d0e359e8ac9a1c22731baffedc.jpg",
+  },
 ];
 
 let foodItemIndex = Math.floor(Math.random() * foodItem.length);
@@ -55,8 +63,8 @@ function generateFood() {
       y: Math.floor(Math.random() * cols),
     };
   } while (
-    snake.some(s => s.x === pos.x && s.y === pos.y) ||
-    collisionBlocks.some(w => w.x === pos.x && w.y === pos.y)
+    snake.some((s) => s.x === pos.x && s.y === pos.y) ||
+    collisionBlocks.some((w) => w.x === pos.x && w.y === pos.y)
   );
   return pos;
 }
@@ -88,17 +96,26 @@ function generateWalls() {
 
   // Safety: remove walls overlapping snake
   collisionBlocks = collisionBlocks.filter(
-    w => !snake.some(s => s.x === w.x && s.y === w.y)
+    (w) => !snake.some((s) => s.x === w.x && s.y === w.y)
   );
+}
+
+// reset snake position
+function resetSnake() {
+  snake.length = 0;
+  snake.push({ x: 2, y: 7 }, { x: 2, y: 6 }, { x: 2, y: 5 });
+  direction = "right";
 }
 
 /* ================== GAME LOOP ================== */
 function render() {
-  Object.values(blocks).forEach(b =>
+  Object.values(blocks).forEach((b) =>
     b.classList.remove("fill", "collision-block")
   );
 
   let head = { ...snake[0] };
+
+  let hit = false;
 
   if (direction === "left") head.y--;
   if (direction === "right") head.y++;
@@ -107,21 +124,39 @@ function render() {
 
   /* -------- BOUNDARY -------- */
   if (head.x < 0 || head.x >= rows || head.y < 0 || head.y >= cols) {
-    return gameOver("Boundary hit");
+    hit = true;
   }
 
   /* -------- WALL -------- */
   for (let wall of collisionBlocks) {
     if (head.x === wall.x && head.y === wall.y) {
-      return gameOver("Wall hit");
+      hit = true;
+      break;
     }
   }
 
   /* -------- SELF -------- */
   for (let i = 1; i < snake.length; i++) {
     if (head.x === snake[i].x && head.y === snake[i].y) {
-      return gameOver("Self collision");
+      hit = true;
+      break;
     }
+  }
+
+  // Handle hit scenario
+  if (hit) {
+    lives--;
+    if (livesElement[lives]) {
+      livesElement[lives].classList.add("lives-end");
+    }
+
+    if (lives === 0) {
+      gameOver();
+      return;
+    }
+
+    resetSnake();
+    return;
   }
 
   /* -------- FOOD -------- */
@@ -141,10 +176,19 @@ function render() {
   /* -------- LEVEL -------- */
   let prevLevel = level;
 
-  if (score >= 200 && score < 400) { level = 2; speed = 250; }
-  else if (score >= 400 && score < 600) { level = 3; speed = 200; }
-  else if (score >= 600 && score < 800) { level = 4; speed = 150; }
-  else if (score >= 800) { level = 5; speed = 100; }
+  if (score >= 200 && score < 400) {
+    level = 2;
+    speed = 250;
+  } else if (score >= 400 && score < 600) {
+    level = 3;
+    speed = 200;
+  } else if (score >= 600 && score < 800) {
+    level = 4;
+    speed = 150;
+  } else if (score >= 800) {
+    level = 5;
+    speed = 100;
+  }
 
   if (level !== prevLevel) {
     levelElement.innerText = level;
@@ -153,11 +197,9 @@ function render() {
   }
 
   /* -------- DRAW -------- */
-  snake.forEach(s =>
-    blocks[`${s.x}-${s.y}`].classList.add("fill")
-  );
+  snake.forEach((s) => blocks[`${s.x}-${s.y}`].classList.add("fill"));
 
-  collisionBlocks.forEach(w =>
+  collisionBlocks.forEach((w) =>
     blocks[`${w.x}-${w.y}`]?.classList.add("collision-block")
   );
 
@@ -165,8 +207,8 @@ function render() {
   blocks[`${foodPosition.x}-${foodPosition.y}`].appendChild(img);
 }
 
-function gameOver(reason) {
-  alert("Game Over: " + reason);
+function gameOver() {
+  alert("Game Over: ");
   clearInterval(intervalId);
 }
 
@@ -180,7 +222,7 @@ generateWalls();
 startGameLoop();
 
 /* ================== CONTROLS ================== */
-addEventListener("keydown", e => {
+addEventListener("keydown", (e) => {
   if (e.key === "ArrowUp" && direction !== "down") direction = "up";
   if (e.key === "ArrowDown" && direction !== "up") direction = "down";
   if (e.key === "ArrowLeft" && direction !== "right") direction = "left";

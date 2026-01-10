@@ -16,7 +16,10 @@ body {
     --bg-primary-color: #131212;
     --bg-secondary-color: #1e1c1c;
     --snake-bg-color: rgb(200, 195, 195);
-    --food-color : red;
+
+    /* food color */
+    --live-color: rgb(228, 8, 8);
+    --live-empty-color: rgb(112, 107, 107);
 
     --block-bg-color: #e7e4e4;
     --block-border-color: rgb(37, 34, 34);
@@ -84,8 +87,12 @@ main {
 }
 
 #lives i {
-    color: rgb(228, 8, 8);
+    /* color: var(--live-color); */
     font-size: 22px
+}
+
+.lives-end{
+    color: var(--live-empty-color);
 }
 
 .block {
