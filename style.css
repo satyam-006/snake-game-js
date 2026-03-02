@@ -87,11 +87,14 @@ main {
 }
 
 #lives i {
-    /* color: var(--live-color); */
     font-size: 22px
 }
 
-.lives-end{
+.live {
+    color: var(--live-color);
+}
+
+.lives-end {
     color: var(--live-empty-color);
 }
 
@@ -106,11 +109,11 @@ main {
     background-color: var(--snake-bg-color);
 }
 
-.food{
+.food {
     background-color: var(--food-color);
 }
 
-.food-image{
+.food-image {
     width: 100%;
     height: 100%;
     object-fit: cover;
@@ -119,4 +122,56 @@ main {
 
 .collision-block {
     background-color: var(--snake-bg-color);
+}
+
+.modal {
+    width: 100%;
+    height: 100%;
+    position: fixed;
+    top: 0;
+    left: 0;
+    background-color: #13121233;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+    /* display: none; */
+}
+
+.model-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-lg);
+
+}
+
+.model-content h2 {
+    font-size: 1.4rem;
+}
+
+
+
+
+.btn {
+    padding: var(--space-md) var(--space-lg);
+    outline: none;
+    border: none;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: var(--border-radius-sm);
+    transition: all ease .5s;
+    cursor: pointer;
+}
+
+.btn:active {
+    scale: .8;
+}
+
+.game-over {
+    display: none;
+}
+
+.game-over h3 {
+    font-size: 1rem;
 }

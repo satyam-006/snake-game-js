@@ -5,11 +5,22 @@ const rows = Math.floor(board.clientHeight / 50);
 const scoreElement = document.querySelector("#score");
 const levelElement = document.querySelector("#level");
 const livesElement = document.querySelectorAll(".live");
+const highScoreElement = document.querySelector("#high-score");
+const startButton = document.querySelector(".start-btn");
+const restartButton = document.querySelector(".restart-btn");
+const modal = document.querySelector(".modal");
+const startGame = document.querySelector(".start-game");
+const modalGameOver = document.querySelector(".game-over");
+const yourScore = document.querySelector("#your-score");
+const modalHighScore = document.querySelector("#modal-high-score");
+const timerElement = document.querySelector("#timer");
 
 let score = 0;
 let level = 1;
 let lives = 3;
 let speed = 300;
+let time = "00-00";
+let highScoreValue = 0;
 levelElement.innerText = level;
 
 const blocks = {};
@@ -25,13 +36,14 @@ const snake = [
 
 let direction = "right";
 let intervalId = null;
+let timeIntervalId = null;
 
 /* ================== FOOD ================== */
 const foodItem = [
   { score: 10, img: "https://pnglove.com/data/img/720_mpvW.jpg" },
   {
     score: 20,
-    img: "https://i.pinimg.com/736x/32/f0/1c/32f01cfcf9ba1dbe20a546f4dff08fd3.jpg",
+    img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTI3dY2qTBXlgquADoQqmmxfzR0Nu_GTts1Lw&s",
   },
   {
     score: 30,
@@ -57,15 +69,22 @@ for (let r = 0; r < rows; r++) {
 /* ================== HELPERS ================== */
 function generateFood() {
   let pos;
-  do {
+  let isValid = false;
+
+  while (!isValid) {
     pos = {
       x: Math.floor(Math.random() * rows),
       y: Math.floor(Math.random() * cols),
     };
-  } while (
-    snake.some((s) => s.x === pos.x && s.y === pos.y) ||
-    collisionBlocks.some((w) => w.x === pos.x && w.y === pos.y)
-  );
+
+    const onSnake = snake.some((s) => s.x === pos.x && s.y === pos.y);
+    const onWall = collisionBlocks.some((w) => w.x === pos.x && w.y === pos.y);
+
+    if (!onSnake && !onWall) {
+      isValid = true;
+    }
+  }
+
   return pos;
 }
 
@@ -96,7 +115,7 @@ function generateWalls() {
 
   // Safety: remove walls overlapping snake
   collisionBlocks = collisionBlocks.filter(
-    (w) => !snake.some((s) => s.x === w.x && s.y === w.y)
+    (w) => !snake.some((s) => s.x === w.x && s.y === w.y),
   );
 }
 
@@ -107,10 +126,26 @@ function resetSnake() {
   direction = "right";
 }
 
+/* ================== Timer ================== */
+
+function timer() {
+  timeIntervalId = setInterval(() => {
+    let [min, sec] = time.split("-").map(Number);
+    if (sec === 59) {
+      min += 1;
+      sec = 0;
+    } else {
+      sec += 1;
+    }
+    time = `${min}-${sec}`;
+    timerElement.innerText = time;
+  }, 1000);
+}
+
 /* ================== GAME LOOP ================== */
 function render() {
   Object.values(blocks).forEach((b) =>
-    b.classList.remove("fill", "collision-block")
+    b.classList.remove("fill", "collision-block"),
   );
 
   let head = { ...snake[0] };
@@ -121,6 +156,13 @@ function render() {
   if (direction === "right") head.y++;
   if (direction === "up") head.x--;
   if (direction === "down") head.x++;
+
+  // high score logic
+  if (score > Number(localStorage.getItem("high-score"))) {
+    highScoreValue = score;
+    localStorage.setItem("high-score", highScoreValue);
+  }
+  highScoreElement.innerText = Number(localStorage.getItem("high-score"));
 
   /* -------- BOUNDARY -------- */
   if (head.x < 0 || head.x >= rows || head.y < 0 || head.y >= cols) {
@@ -148,6 +190,7 @@ function render() {
     lives--;
     if (livesElement[lives]) {
       livesElement[lives].classList.add("lives-end");
+      livesElement[lives].classList.remove("live");
     }
 
     if (lives === 0) {
@@ -193,6 +236,8 @@ function render() {
   if (level !== prevLevel) {
     levelElement.innerText = level;
     generateWalls();
+    foodPosition = generateFood();
+
     startGameLoop();
   }
 
@@ -200,7 +245,7 @@ function render() {
   snake.forEach((s) => blocks[`${s.x}-${s.y}`].classList.add("fill"));
 
   collisionBlocks.forEach((w) =>
-    blocks[`${w.x}-${w.y}`]?.classList.add("collision-block")
+    blocks[`${w.x}-${w.y}`]?.classList.add("collision-block"),
   );
 
   img.src = foodItem[foodItemIndex].img;
@@ -208,8 +253,13 @@ function render() {
 }
 
 function gameOver() {
-  alert("Game Over: ");
+  modal.style.display = "flex";
+  startGame.style.display = "none";
+  modalGameOver.style.display = "flex";
+  yourScore.innerText = score;
+  modalHighScore.innerText = Number(localStorage.getItem("high-score"));
   clearInterval(intervalId);
+  clearInterval(timeIntervalId);
 }
 
 function startGameLoop() {
@@ -218,8 +268,45 @@ function startGameLoop() {
 }
 
 /* ================== START ================== */
-generateWalls();
-startGameLoop();
+startButton.addEventListener("click", () => {
+  timer();
+  generateWalls();
+  startGameLoop();
+  modal.style.display = "none";
+});
+
+/* ================== RESTART ================== */
+
+function restartGame() {
+  clearInterval(intervalId);
+  clearInterval(timeIntervalId);
+  score = 0;
+  lives = 3;
+  level = 1;
+  speed = 300;
+  time = "00-00";
+  resetSnake();
+
+  scoreElement.innerText = score;
+  levelElement.innerText = level;
+  livesElement.forEach((l) => {
+    l.classList.remove("lives-end");
+    l.classList.add("live");
+  });
+
+  Object.values(blocks).forEach((b) => {
+    b.classList.remove("fill", "collision-block");
+  });
+  timer();
+  generateWalls();
+  foodPosition = generateFood();
+  startGameLoop();
+}
+
+restartButton.addEventListener("click", () => {
+  modal.style.display = "none";
+  restartGame();
+});
 
 /* ================== CONTROLS ================== */
 addEventListener("keydown", (e) => {
